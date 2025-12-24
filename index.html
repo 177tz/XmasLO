@@ -57,32 +57,31 @@
             overflow-x: hidden; 
         }
 
-        /* 彈幕本體樣式 */
         .danmaku-item {
             position: absolute;
             white-space: nowrap; 
             color: #fff;
             font-weight: bold;
-            text-shadow: 3px 3px 6px rgba(0,0,0,0.9), -1px -1px 2px rgba(0,0,0,0.5); 
+            /* 更加強陰影，讓字體更立體 */
+            text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000, 1px 1px 0px #000;
             will-change: transform;
-            /* 動畫定義在 JS 中動態加入，以便控制速度 */
         }
 
-        /* --- 控制面板樣式 --- */
+        /* --- 控制面板 --- */
         #settings-btn {
             position: fixed;
             top: 20px;
             right: 20px;
             z-index: 100;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.4);
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.5);
             color: white;
             font-size: 24px;
             width: 44px;
             height: 44px;
             border-radius: 50%;
             cursor: pointer;
-            backdrop-filter: blur(5px);
+            backdrop-filter: blur(4px);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -92,33 +91,29 @@
             position: fixed;
             top: 70px;
             right: 20px;
-            width: 250px;
-            background: rgba(0, 0, 0, 0.85);
+            width: 260px;
+            background: rgba(0, 0, 0, 0.9);
             padding: 20px;
             border-radius: 12px;
             z-index: 100;
             color: white;
-            display: none; /* 預設隱藏 */
+            display: none; 
             border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
 
-        .control-group {
-            margin-bottom: 15px;
-        }
+        .control-group { margin-bottom: 20px; }
+        .control-group label { display: block; margin-bottom: 8px; font-size: 14px; color: #ddd; }
         
-        .control-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 14px;
-            color: #ddd;
-        }
-
         input[type=range] {
             width: 100%;
-            accent-color: #ff4757; /* 聖誕紅拉桿 */
+            accent-color: #ff4757; 
+            height: 6px;
+            background: #555;
+            border-radius: 5px;
+            outline: none;
         }
 
-        /* 定義動畫 */
         @keyframes scrollLeft {
             from { transform: translateX(110vw); } 
             to { transform: translateX(-100%); }
@@ -128,13 +123,10 @@
 <body>
 
     <div id="bg-wrapper">
-        <img id="bg-img" src="bg.jpg" 
-             onerror="this.src='bg.JPG';" 
-             alt="背景圖">
+        <img id="bg-img" src="bg.jpg" onerror="this.src='bg.JPG';" alt="背景圖">
     </div>
 
     <div class="overlay"></div>
-
     <div id="danmaku-container"></div>
 
     <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
@@ -145,11 +137,11 @@
             <input type="range" id="speedRange" min="1" max="10" value="5" oninput="updateSettings()">
         </div>
         <div class="control-group">
-            <label>訊息密度 (少 ↔ 多)</label>
-            <input type="range" id="densityRange" min="1" max="10" value="5" oninput="updateSettings()">
+            <label>間距密度 (寬鬆 ↔ 密集)</label>
+            <input type="range" id="densityRange" min="1" max="10" value="3" oninput="updateSettings()">
         </div>
-        <div style="text-align: right; font-size: 12px; color: #888;">
-            v4.0 軌道防重疊版
+        <div style="text-align: center; font-size: 12px; color: #aaa; margin-top: 10px;">
+            v5.0 舒適間距版
         </div>
     </div>
 
@@ -157,44 +149,37 @@
         // --- 圖片救援 ---
         const img = document.getElementById('bg-img');
         img.onerror = function() {
-            // 如果本地圖片都不行，就連網路
             this.src = 'https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=85&fm=jpg&w=1920';
         };
 
-        // --- 變數與設定 ---
         const container = document.getElementById('danmaku-container');
         const colors = ['#FFFFFF', '#FFFAFA', '#FFE4E1', '#FFB6C1', '#F0F8FF', '#FFD700'];
         let messages = []; 
         let isMobile = window.innerWidth < 768; 
         let timer = null;
 
-        // 控制參數 (由拉桿控制)
-        let speedMultiplier = 5; // 速度 1-10
-        let densityMultiplier = 5; // 密度 1-10
+        // 設定參數
+        let speedMultiplier = 5; 
+        let densityMultiplier = 3; // 預設 3，比較不擠
 
-        // 軌道系統：用來防止重疊
-        // 將螢幕高度切分成多個軌道，每個軌道紀錄「何時變為空閒」
+        // 軌道系統
         let tracks = []; 
-        const trackHeight = isMobile ? 35 : 50; // 每個軌道的高度(px)
+        const trackHeight = isMobile ? 40 : 55; // 軌道高度加高，讓垂直距離也拉開
 
-        // 初始化軌道
         function initTracks() {
             const screenHeight = window.innerHeight;
-            // 計算可以放幾條軌道 (保留上下 10% 的邊距)
+            // 讓彈幕只出現在螢幕的中間 80% 區域，不要貼頂也不要貼底
             const availableHeight = screenHeight * 0.8; 
             const trackCount = Math.floor(availableHeight / trackHeight);
-            
-            tracks = new Array(trackCount).fill(0); // 0 代表現在就是空閒的
+            tracks = new Array(trackCount).fill(0); 
         }
         
-        // 視窗變形時重新計算軌道
         window.addEventListener('resize', () => {
             isMobile = window.innerWidth < 768;
             initTracks();
         });
         initTracks();
 
-        // --- 讀取留言 ---
         fetch('messages.json')
             .then(response => response.json())
             .then(data => {
@@ -202,7 +187,7 @@
                 startDanmaku();  
             })
             .catch(error => {
-                messages = ["LingOrm 聖誕快樂", "Merry Christmas", "Happy New Year"];
+                messages = ["LingOrm 聖誕快樂", "Merry Christmas"];
                 startDanmaku();
             });
 
@@ -210,11 +195,8 @@
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
-        // --- 核心：產生彈幕 ---
         function createDanmaku() {
             if (messages.length === 0) return; 
+            if (tracks.length === 0) initTracks(); // 雙重保險
 
-            // 1. 尋找空閒的軌道
             const now = Date.now();
-            // 找出所有「目前時間 > 釋放時間」的軌道索引
-            const availableTracks = tracks

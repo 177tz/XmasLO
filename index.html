@@ -14,15 +14,15 @@
             background-color: #000;
         }
 
-        /* 背景圖設定 - 如果您有上傳 bg.jpg，這裡保持不變，或換回網址 */
+        /* 背景圖設定 - 強制使用網路圖片 */
         #bg-container {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            /* 優先讀取您可能上傳的 bg.jpg，若無則讀取網址 */
-            background-image: url('bg.jpg'), url('https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&auto=format&fit=crop&w=1920&q=80');
+            /* 只保留這個網路連結，確保一定能讀取 */
+            background-image: url('https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&auto=format&fit=crop&w=1920&q=80');
             background-size: cover;
             background-position: center;
             opacity: 0.8; 
@@ -77,7 +77,7 @@
     <script>
         const container = document.getElementById('danmaku-container');
         const colors = ['#FFFFFF', '#FFE4E1', '#FFD700', '#F0F8FF', '#FFC0CB'];
-        let messages = []; // 預設為空，等待檔案載入
+        let messages = []; 
 
         // 讀取外部的 messages.json 檔案
         fetch('messages.json')
@@ -88,13 +88,13 @@
                 return response.json();
             })
             .then(data => {
-                messages = data; // 將讀取到的資料存入 messages
-                startDanmaku();  // 資料載入完成後，開始播放
+                messages = data; 
+                startDanmaku();  
             })
             .catch(error => {
                 console.error('讀取留言檔失敗:', error);
-                // 萬一讀取失敗，顯示一條預設訊息以免畫面全空
-                messages = ["LingOrm Forever (系統測試)"];
+                // 萬一讀取失敗，顯示預設訊息
+                messages = ["LingOrm Forever (資料讀取中...)", "請檢查 messages.json 是否上傳"];
                 startDanmaku();
             });
 
@@ -103,7 +103,7 @@
         }
 
         function createDanmaku() {
-            if (messages.length === 0) return; // 如果資料還沒載入，就先不做事
+            if (messages.length === 0) return; 
 
             const text = messages[random(0, messages.length - 1)];
             const div = document.createElement('div');
@@ -126,11 +126,9 @@
         }
 
         function startDanmaku() {
-            // 初始化：先生成一批彈幕
             for(let i=0; i<15; i++) {
                 setTimeout(createDanmaku, i * 500);
             }
-            // 之後持續生成
             setInterval(createDanmaku, 800);
         }
     </script>

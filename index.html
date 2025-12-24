@@ -11,26 +11,28 @@
             width: 100%;
             height: 100%;
             overflow: hidden; 
-            background-color: #000; /* 萬一圖片沒載入的最後防線 */
+            /* 最後防線：如果圖片全掛，至少顯示聖誕紅，不要全黑 */
+            background-color: #8b0000; 
         }
 
-        #bg-container {
+        /* 圖片容器 */
+        #bg-wrapper {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            /* 關鍵修改：這裡直接讀取您上傳的 bg.jpg */
-            background-image: url('bg.jpg');
-            
-            /* 確保圖片在手機和電腦都自動填滿且置中 */
-            background-size: cover; 
-            background-position: center center;
-            background-repeat: no-repeat;
-            
-            opacity: 0.85; /* 稍微調亮一點點 */
             z-index: -1;
-            transition: opacity 0.5s ease-in; /* 讓圖片載入時有淡入效果 */
+        }
+
+        /* 背景圖片本體 */
+        #bg-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 關鍵：保證手機和電腦都填滿且不變形 */
+            object-position: center;
+            opacity: 0.85;
+            transition: opacity 0.5s;
         }
 
         /* 遮罩層 */
@@ -52,7 +54,6 @@
             height: 100%;
             pointer-events: none; 
             z-index: 10;
-            /* 防止手機上意外的左右滑動 */
             overflow-x: hidden; 
         }
 
@@ -62,7 +63,6 @@
             color: #fff;
             font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
             font-weight: bold;
-            /* 加強陰影讓字在亮處更清楚 */
             text-shadow: 3px 3px 6px rgba(0,0,0,0.9), -1px -1px 2px rgba(0,0,0,0.5); 
             opacity: 0.95;
             will-change: transform;
@@ -70,34 +70,39 @@
             animation-fill-mode: forwards;
         }
         
-        /* 手機版特別調整 */
-        @media screen and (max-width: 768px) {
-            #bg-container {
-                /* 手機上可能需要稍微調整圖片焦點，目前設定置中 */
-                background-position: center center; 
-            }
-        }
-        
         @keyframes scrollLeft {
-            from { transform: translateX(110vw); } /* 從更右邊一點開始 */
+            from { transform: translateX(110vw); } 
             to { transform: translateX(-100%); }
         }
     </style>
 </head>
 <body>
 
-    <div id="bg-container"></div>
+    <div id="bg-wrapper">
+        <img id="bg-img" src="bg.jpg" alt="背景圖" 
+             onerror="this.onerror=null; this.src='bg.JPG'; console.log('試圖讀取大寫檔名...'); tryOnlineImage(this);">
+    </div>
+
     <div class="overlay"></div>
     <div id="danmaku-container"></div>
 
     <script>
+        // 圖片救援函數
+        function tryOnlineImage(imgElement) {
+            // 如果連大寫 bg.JPG 都失敗，就稍微等一下載入網路備用圖
+            setTimeout(() => {
+                if (!imgElement.complete || imgElement.naturalWidth === 0) {
+                    console.log('本地圖片讀取失敗，切換至網路備用圖');
+                    imgElement.src = 'https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&w=1920';
+                }
+            }, 100);
+        }
+
         const container = document.getElementById('danmaku-container');
-        // 移除太接近背景色的黃色，增加粉色和白色系
         const colors = ['#FFFFFF', '#FFFAFA', '#FFE4E1', '#FFB6C1', '#F0F8FF'];
         let messages = []; 
-        let isMobile = window.innerWidth < 768; // 判斷是否為手機
+        let isMobile = window.innerWidth < 768; 
 
-        // 讀取外部檔案
         fetch('messages.json')
             .then(response => {
                 if (!response.ok) throw new Error("HTTP error");
@@ -109,7 +114,7 @@
             })
             .catch(error => {
                 console.error('讀取失敗:', error);
-                messages = ["LingOrm 聖誕快樂 (資料讀取中...)", "請確認 messages.json 位置"];
+                messages = ["LingOrm 聖誕快樂", "資料讀取中..."];
                 startDanmaku();
             });
 
@@ -125,20 +130,12 @@
             div.className = 'danmaku-item';
             div.textContent = text;
             
-            // 垂直位置盡量避開最上面和最下面，以免被瀏覽器工具列擋住
             div.style.top = random(10, 85) + '%'; 
             div.style.color = colors[random(0, colors.length - 1)];
             
-            // 根據裝置調整字體大小
-            let fontSize;
-            if (isMobile) {
-                fontSize = random(22, 30) + 'px'; // 手機字體稍微小一點但要夠清楚
-            } else {
-                fontSize = random(26, 38) + 'px'; // 電腦版大一點
-            }
+            let fontSize = isMobile ? random(22, 30) + 'px' : random(26, 38) + 'px';
             div.style.fontSize = fontSize;
             
-            // 電腦版跑慢一點，手機版跑快一點點 (因為螢幕窄)
             const duration = isMobile ? random(10, 16) : random(14, 22);
             div.style.animationName = 'scrollLeft';
             div.style.animationDuration = duration + 's';
@@ -151,17 +148,14 @@
         }
 
         function startDanmaku() {
-            // 初始彈幕數量，手機少一點避免擁擠
             const initialCount = isMobile ? 10 : 18;
             for(let i=0; i < initialCount; i++) {
                 setTimeout(createDanmaku, i * 600);
             }
-            // 生成頻率
             const intervalTime = isMobile ? 1000 : 800;
             setInterval(createDanmaku, intervalTime);
         }
         
-        // 監聽視窗大小改變，重新判斷是否為手機
         window.addEventListener('resize', () => {
             isMobile = window.innerWidth < 768;
         });

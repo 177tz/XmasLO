@@ -11,8 +11,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden; 
-            /* 最後防線：如果圖片全掛，至少顯示聖誕紅，不要全黑 */
-            background-color: #8b0000; 
+            background-color: #000; 
         }
 
         /* 圖片容器 */
@@ -22,20 +21,31 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: -1;
+            z-index: -2;
+            background: linear-gradient(135deg, #8b0000 0%, #1a472a 100%); /* 圖片載入前的聖誕漸層底色 */
         }
 
         /* 背景圖片本體 */
         #bg-img {
             width: 100%;
             height: 100%;
-            object-fit: cover; /* 關鍵：保證手機和電腦都填滿且不變形 */
+            object-fit: cover; 
             object-position: center;
-            opacity: 0.85;
-            transition: opacity 0.5s;
+            opacity: 0; /* 一開始隱藏，載入成功才顯示 */
+            transition: opacity 1s ease-in;
         }
 
-        /* 遮罩層 */
+        /* 偵測狀態顯示 (除錯用) */
+        #debug-status {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            color: rgba(255,255,255,0.5);
+            font-size: 10px;
+            z-index: 100;
+            font-family: monospace;
+        }
+
         .overlay {
             position: fixed;
             top: 0;
@@ -43,7 +53,7 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.4); 
-            z-index: 0;
+            z-index: -1;
         }
 
         #danmaku-container {
@@ -79,41 +89,78 @@
 <body>
 
     <div id="bg-wrapper">
-    <img id="bg-img" src="https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&w=1920" alt="背景圖">
-</div>
+        <img id="bg-img" alt="Background">
+    </div>
+
+    <div id="debug-status">正在尋找背景圖...</div>
 
     <div class="overlay"></div>
     <div id="danmaku-container"></div>
 
     <script>
-        // 圖片救援函數
-        function tryOnlineImage(imgElement) {
-            // 如果連大寫 bg.JPG 都失敗，就稍微等一下載入網路備用圖
-            setTimeout(() => {
-                if (!imgElement.complete || imgElement.naturalWidth === 0) {
-                    console.log('本地圖片讀取失敗，切換至網路備用圖');
-                    imgElement.src = 'https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=85&fm=jpg&crop=entropy&cs=srgb&w=1920';
-                }
-            }, 100);
+        // --- 圖片自動搜尋邏輯 ---
+        const imgElement = document.getElementById('bg-img');
+        const statusDiv = document.getElementById('debug-status');
+        
+        // 這是我們要嘗試的所有圖片路徑列表
+        const imageCandidates = [
+            'bg.jpg',    // 1. 最標準的小寫
+            'bg.JPG',    // 2. 有時候手機上傳會變大寫
+            'bg.jpeg',   // 3. 另一種常見格式
+            'bg.png',    // 4. 或者是 png
+            'background.jpg',
+            // 5. 網路備用圖 (Unsplash)
+            'https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=85&fm=jpg&w=1920',
+            // 6. 網路備用圖 (Wikimedia 穩定備援)
+            'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Christmas_tree_at_night_2009.jpg/1280px-Christmas_tree_at_night_2009.jpg'
+        ];
+
+        let currentTryIndex = 0;
+
+        function tryLoadImage() {
+            if (currentTryIndex >= imageCandidates.length) {
+                statusDiv.textContent = "放棄：所有圖片都讀取失敗";
+                return;
+            }
+
+            const currentSrc = imageCandidates[currentTryIndex];
+            statusDiv.textContent = `嘗試讀取: ${currentSrc.split('/').pop()} ...`; // 顯示目前試到哪一個
+
+            // 建立一個臨時圖片物件來測試能不能下載
+            const tempImg = new Image();
+            tempImg.onload = function() {
+                // 成功了！
+                imgElement.src = currentSrc;
+                imgElement.style.opacity = 0.85; // 顯示圖片
+                statusDiv.textContent = `成功載入: ${currentSrc.split('/').pop()}`;
+                // 3秒後隱藏狀態文字
+                setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
+            };
+            tempImg.onerror = function() {
+                // 失敗了，試下一個
+                currentTryIndex++;
+                tryLoadImage();
+            };
+            tempImg.src = currentSrc;
         }
 
+        // 開始嘗試載入
+        tryLoadImage();
+
+        // --- 以下是原本的彈幕邏輯 ---
         const container = document.getElementById('danmaku-container');
         const colors = ['#FFFFFF', '#FFFAFA', '#FFE4E1', '#FFB6C1', '#F0F8FF'];
         let messages = []; 
         let isMobile = window.innerWidth < 768; 
 
         fetch('messages.json')
-            .then(response => {
-                if (!response.ok) throw new Error("HTTP error");
-                return response.json();
-            })
+            .then(response => response.json())
             .then(data => {
                 messages = data; 
                 startDanmaku();  
             })
             .catch(error => {
-                console.error('讀取失敗:', error);
-                messages = ["LingOrm 聖誕快樂", "資料讀取中..."];
+                messages = ["LingOrm 聖誕快樂", "Waiting for love..."];
                 startDanmaku();
             });
 
@@ -123,41 +170,28 @@
 
         function createDanmaku() {
             if (messages.length === 0) return; 
-
             const text = messages[random(0, messages.length - 1)];
             const div = document.createElement('div');
             div.className = 'danmaku-item';
             div.textContent = text;
-            
             div.style.top = random(10, 85) + '%'; 
             div.style.color = colors[random(0, colors.length - 1)];
-            
-            let fontSize = isMobile ? random(22, 30) + 'px' : random(26, 38) + 'px';
-            div.style.fontSize = fontSize;
-            
+            div.style.fontSize = isMobile ? random(22, 30) + 'px' : random(26, 38) + 'px';
             const duration = isMobile ? random(10, 16) : random(14, 22);
             div.style.animationName = 'scrollLeft';
             div.style.animationDuration = duration + 's';
-
             container.appendChild(div);
-
-            div.addEventListener('animationend', () => {
-                div.remove();
-            });
+            div.addEventListener('animationend', () => div.remove());
         }
 
         function startDanmaku() {
             const initialCount = isMobile ? 10 : 18;
-            for(let i=0; i < initialCount; i++) {
-                setTimeout(createDanmaku, i * 600);
-            }
+            for(let i=0; i < initialCount; i++) { setTimeout(createDanmaku, i * 600); }
             const intervalTime = isMobile ? 1000 : 800;
             setInterval(createDanmaku, intervalTime);
         }
         
-        window.addEventListener('resize', () => {
-            isMobile = window.innerWidth < 768;
-        });
+        window.addEventListener('resize', () => { isMobile = window.innerWidth < 768; });
     </script>
 </body>
 </html>

@@ -62,56 +62,9 @@
             white-space: nowrap; 
             color: #fff;
             font-weight: bold;
-            /* 更加強陰影，讓字體更立體 */
+            /* 強力陰影 */
             text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000, 1px 1px 0px #000;
             will-change: transform;
-        }
-
-        /* --- 控制面板 --- */
-        #settings-btn {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 100;
-            background: rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            color: white;
-            font-size: 24px;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            cursor: pointer;
-            backdrop-filter: blur(4px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #settings-panel {
-            position: fixed;
-            top: 70px;
-            right: 20px;
-            width: 260px;
-            background: rgba(0, 0, 0, 0.9);
-            padding: 20px;
-            border-radius: 12px;
-            z-index: 100;
-            color: white;
-            display: none; 
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-
-        .control-group { margin-bottom: 20px; }
-        .control-group label { display: block; margin-bottom: 8px; font-size: 14px; color: #ddd; }
-        
-        input[type=range] {
-            width: 100%;
-            accent-color: #ff4757; 
-            height: 6px;
-            background: #555;
-            border-radius: 5px;
-            outline: none;
         }
 
         @keyframes scrollLeft {
@@ -129,24 +82,8 @@
     <div class="overlay"></div>
     <div id="danmaku-container"></div>
 
-    <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
-
-    <div id="settings-panel">
-        <div class="control-group">
-            <label>飛行速度 (慢 ↔ 快)</label>
-            <input type="range" id="speedRange" min="1" max="10" value="5" oninput="updateSettings()">
-        </div>
-        <div class="control-group">
-            <label>間距密度 (寬鬆 ↔ 密集)</label>
-            <input type="range" id="densityRange" min="1" max="10" value="3" oninput="updateSettings()">
-        </div>
-        <div style="text-align: center; font-size: 12px; color: #aaa; margin-top: 10px;">
-            v5.0 舒適間距版
-        </div>
-    </div>
-
     <script>
-        // --- 圖片救援 ---
+        // --- 圖片救援機制 ---
         const img = document.getElementById('bg-img');
         img.onerror = function() {
             this.src = 'https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=85&fm=jpg&w=1920';
@@ -156,19 +93,15 @@
         const colors = ['#FFFFFF', '#FFFAFA', '#FFE4E1', '#FFB6C1', '#F0F8FF', '#FFD700'];
         let messages = []; 
         let isMobile = window.innerWidth < 768; 
-        let timer = null;
 
-        // 設定參數
-        let speedMultiplier = 5; 
-        let densityMultiplier = 3; // 預設 3，比較不擠
-
-        // 軌道系統
+        // --- 軌道系統 ---
         let tracks = []; 
-        const trackHeight = isMobile ? 40 : 55; // 軌道高度加高，讓垂直距離也拉開
+        // 增加軌道高度，讓垂直間距變大
+        const trackHeight = isMobile ? 45 : 60; 
 
         function initTracks() {
             const screenHeight = window.innerHeight;
-            // 讓彈幕只出現在螢幕的中間 80% 區域，不要貼頂也不要貼底
+            // 上下各留 10% 空白，中間 80% 跑彈幕
             const availableHeight = screenHeight * 0.8; 
             const trackCount = Math.floor(availableHeight / trackHeight);
             tracks = new Array(trackCount).fill(0); 
@@ -180,6 +113,7 @@
         });
         initTracks();
 
+        // --- 讀取資料 ---
         fetch('messages.json')
             .then(response => response.json())
             .then(data => {
@@ -187,7 +121,7 @@
                 startDanmaku();  
             })
             .catch(error => {
-                messages = ["LingOrm 聖誕快樂", "Merry Christmas"];
+                messages = ["LingOrm 聖誕快樂", "Merry Christmas", "Happy New Year"];
                 startDanmaku();
             });
 
@@ -197,6 +131,20 @@
 
         function createDanmaku() {
             if (messages.length === 0) return; 
-            if (tracks.length === 0) initTracks(); // 雙重保險
+            if (tracks.length === 0) initTracks();
 
             const now = Date.now();
+            
+            // 尋找空閒軌道
+            const availableTracks = tracks
+                .map((time, index) => ({ time, index }))
+                .filter(item => now >= item.time)
+                .map(item => item.index);
+
+            // 如果太擠沒有軌道，就跳過
+            if (availableTracks.length === 0) return;
+
+            // 隨機選一條
+            const trackIndex = availableTracks[random(0, availableTracks.length - 1)];
+
+            const text = messages[random(

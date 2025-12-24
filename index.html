@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>LingOrm 聖誕祝福彈幕牆</title>
     <style>
-        /* 1. 關鍵修改：把 body 的黑色背景拿掉，改成透明，以免擋住後面的圖 */
+        /* --- 基礎設定 --- */
         body, html {
             margin: 0;
             padding: 0;
@@ -13,20 +13,20 @@
             height: 100%;
             overflow: hidden; 
             background: none; 
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
         }
 
-        /* 2. 背景容器：給一個深紅底色當作備案 */
+        /* --- 背景區 --- */
         #bg-wrapper {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: -1; /* 保持在最底層，但不要太深 */
+            z-index: -1; 
             background-color: #550000; 
         }
 
-        /* 3. 圖片本體：移除 opacity 動畫，直接顯示 */
         #bg-img {
             display: block;
             width: 100%;
@@ -35,7 +35,6 @@
             object-position: center;
         }
 
-        /* 遮罩層：維持半透明黑，讓字清楚 */
         .overlay {
             position: fixed;
             top: 0;
@@ -46,6 +45,7 @@
             z-index: 0;
         }
 
+        /* --- 彈幕容器 --- */
         #danmaku-container {
             position: absolute;
             top: 0;
@@ -57,19 +57,68 @@
             overflow-x: hidden; 
         }
 
+        /* 彈幕本體樣式 */
         .danmaku-item {
             position: absolute;
             white-space: nowrap; 
             color: #fff;
-            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
             font-weight: bold;
             text-shadow: 3px 3px 6px rgba(0,0,0,0.9), -1px -1px 2px rgba(0,0,0,0.5); 
-            opacity: 0.95;
             will-change: transform;
-            animation-timing-function: linear;
-            animation-fill-mode: forwards;
+            /* 動畫定義在 JS 中動態加入，以便控制速度 */
+        }
+
+        /* --- 控制面板樣式 --- */
+        #settings-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            color: white;
+            font-size: 24px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #settings-panel {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            width: 250px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 12px;
+            z-index: 100;
+            color: white;
+            display: none; /* 預設隱藏 */
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .control-group {
+            margin-bottom: 15px;
         }
         
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+            color: #ddd;
+        }
+
+        input[type=range] {
+            width: 100%;
+            accent-color: #ff4757; /* 聖誕紅拉桿 */
+        }
+
+        /* 定義動畫 */
         @keyframes scrollLeft {
             from { transform: translateX(110vw); } 
             to { transform: translateX(-100%); }
@@ -80,27 +129,72 @@
 
     <div id="bg-wrapper">
         <img id="bg-img" src="bg.jpg" 
-             onerror="this.src='bg.JPG'; console.log('切換大寫檔名');" 
+             onerror="this.src='bg.JPG';" 
              alt="背景圖">
     </div>
 
     <div class="overlay"></div>
+
     <div id="danmaku-container"></div>
 
+    <button id="settings-btn" onclick="toggleSettings()">⚙️</button>
+
+    <div id="settings-panel">
+        <div class="control-group">
+            <label>飛行速度 (慢 ↔ 快)</label>
+            <input type="range" id="speedRange" min="1" max="10" value="5" oninput="updateSettings()">
+        </div>
+        <div class="control-group">
+            <label>訊息密度 (少 ↔ 多)</label>
+            <input type="range" id="densityRange" min="1" max="10" value="5" oninput="updateSettings()">
+        </div>
+        <div style="text-align: right; font-size: 12px; color: #888;">
+            v4.0 軌道防重疊版
+        </div>
+    </div>
+
     <script>
-        // --- 這裡只留最簡單的網路備援，如果 bg.jpg 真的壞了才會跑 ---
+        // --- 圖片救援 ---
         const img = document.getElementById('bg-img');
         img.onerror = function() {
             // 如果本地圖片都不行，就連網路
             this.src = 'https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=85&fm=jpg&w=1920';
         };
 
-        // --- 彈幕邏輯 ---
+        // --- 變數與設定 ---
         const container = document.getElementById('danmaku-container');
-        const colors = ['#FFFFFF', '#FFFAFA', '#FFE4E1', '#FFB6C1', '#F0F8FF'];
+        const colors = ['#FFFFFF', '#FFFAFA', '#FFE4E1', '#FFB6C1', '#F0F8FF', '#FFD700'];
         let messages = []; 
         let isMobile = window.innerWidth < 768; 
+        let timer = null;
 
+        // 控制參數 (由拉桿控制)
+        let speedMultiplier = 5; // 速度 1-10
+        let densityMultiplier = 5; // 密度 1-10
+
+        // 軌道系統：用來防止重疊
+        // 將螢幕高度切分成多個軌道，每個軌道紀錄「何時變為空閒」
+        let tracks = []; 
+        const trackHeight = isMobile ? 35 : 50; // 每個軌道的高度(px)
+
+        // 初始化軌道
+        function initTracks() {
+            const screenHeight = window.innerHeight;
+            // 計算可以放幾條軌道 (保留上下 10% 的邊距)
+            const availableHeight = screenHeight * 0.8; 
+            const trackCount = Math.floor(availableHeight / trackHeight);
+            
+            tracks = new Array(trackCount).fill(0); // 0 代表現在就是空閒的
+        }
+        
+        // 視窗變形時重新計算軌道
+        window.addEventListener('resize', () => {
+            isMobile = window.innerWidth < 768;
+            initTracks();
+        });
+        initTracks();
+
+        // --- 讀取留言 ---
         fetch('messages.json')
             .then(response => response.json())
             .then(data => {
@@ -108,7 +202,7 @@
                 startDanmaku();  
             })
             .catch(error => {
-                messages = ["LingOrm 聖誕快樂", "Merry Christmas"];
+                messages = ["LingOrm 聖誕快樂", "Merry Christmas", "Happy New Year"];
                 startDanmaku();
             });
 
@@ -116,31 +210,11 @@
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
+        // --- 核心：產生彈幕 ---
         function createDanmaku() {
             if (messages.length === 0) return; 
-            const text = messages[random(0, messages.length - 1)];
-            const div = document.createElement('div');
-            div.className = 'danmaku-item';
-            div.textContent = text;
-            div.style.top = random(10, 85) + '%'; 
-            div.style.color = colors[random(0, colors.length - 1)];
-            let fontSize = isMobile ? random(22, 30) + 'px' : random(26, 40) + 'px';
-            div.style.fontSize = fontSize;
-            const duration = isMobile ? random(10, 16) : random(15, 25);
-            div.style.animationName = 'scrollLeft';
-            div.style.animationDuration = duration + 's';
-            container.appendChild(div);
-            div.addEventListener('animationend', () => { div.remove(); });
-        }
 
-        function startDanmaku() {
-            const initialCount = isMobile ? 8 : 15;
-            for(let i=0; i < initialCount; i++) { setTimeout(createDanmaku, i * 600); }
-            const intervalTime = isMobile ? 1200 : 900;
-            setInterval(createDanmaku, intervalTime);
-        }
-        
-        window.addEventListener('resize', () => { isMobile = window.innerWidth < 768; });
-    </script>
-</body>
-</html>
+            // 1. 尋找空閒的軌道
+            const now = Date.now();
+            // 找出所有「目前時間 > 釋放時間」的軌道索引
+            const availableTracks = tracks

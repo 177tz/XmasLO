@@ -5,47 +5,37 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>LingOrm 聖誕祝福彈幕牆</title>
     <style>
+        /* 1. 關鍵修改：把 body 的黑色背景拿掉，改成透明，以免擋住後面的圖 */
         body, html {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
             overflow: hidden; 
-            background-color: #000; 
+            background: none; 
         }
 
-        /* 圖片容器 */
+        /* 2. 背景容器：給一個深紅底色當作備案 */
         #bg-wrapper {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: -2;
-            background: linear-gradient(135deg, #8b0000 0%, #1a472a 100%); /* 圖片載入前的聖誕漸層底色 */
+            z-index: -1; /* 保持在最底層，但不要太深 */
+            background-color: #550000; 
         }
 
-        /* 背景圖片本體 */
+        /* 3. 圖片本體：移除 opacity 動畫，直接顯示 */
         #bg-img {
+            display: block;
             width: 100%;
             height: 100%;
             object-fit: cover; 
             object-position: center;
-            opacity: 0; /* 一開始隱藏，載入成功才顯示 */
-            transition: opacity 1s ease-in;
         }
 
-        /* 偵測狀態顯示 (除錯用) */
-        #debug-status {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            color: rgba(255,255,255,0.5);
-            font-size: 10px;
-            z-index: 100;
-            font-family: monospace;
-        }
-
+        /* 遮罩層：維持半透明黑，讓字清楚 */
         .overlay {
             position: fixed;
             top: 0;
@@ -53,7 +43,7 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.4); 
-            z-index: -1;
+            z-index: 0;
         }
 
         #danmaku-container {
@@ -89,65 +79,23 @@
 <body>
 
     <div id="bg-wrapper">
-        <img id="bg-img" alt="Background">
+        <img id="bg-img" src="bg.jpg" 
+             onerror="this.src='bg.JPG'; console.log('切換大寫檔名');" 
+             alt="背景圖">
     </div>
-
-    <div id="debug-status">正在尋找背景圖...</div>
 
     <div class="overlay"></div>
     <div id="danmaku-container"></div>
 
     <script>
-        // --- 圖片自動搜尋邏輯 ---
-        const imgElement = document.getElementById('bg-img');
-        const statusDiv = document.getElementById('debug-status');
-        
-        // 這是我們要嘗試的所有圖片路徑列表
-        const imageCandidates = [
-            'bg.jpg',    // 1. 最標準的小寫
-            'bg.JPG',    // 2. 有時候手機上傳會變大寫
-            'bg.jpeg',   // 3. 另一種常見格式
-            'bg.png',    // 4. 或者是 png
-            'background.jpg',
-            // 5. 網路備用圖 (Unsplash)
-            'https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=85&fm=jpg&w=1920',
-            // 6. 網路備用圖 (Wikimedia 穩定備援)
-            'https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Christmas_tree_at_night_2009.jpg/1280px-Christmas_tree_at_night_2009.jpg'
-        ];
+        // --- 這裡只留最簡單的網路備援，如果 bg.jpg 真的壞了才會跑 ---
+        const img = document.getElementById('bg-img');
+        img.onerror = function() {
+            // 如果本地圖片都不行，就連網路
+            this.src = 'https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=85&fm=jpg&w=1920';
+        };
 
-        let currentTryIndex = 0;
-
-        function tryLoadImage() {
-            if (currentTryIndex >= imageCandidates.length) {
-                statusDiv.textContent = "放棄：所有圖片都讀取失敗";
-                return;
-            }
-
-            const currentSrc = imageCandidates[currentTryIndex];
-            statusDiv.textContent = `嘗試讀取: ${currentSrc.split('/').pop()} ...`; // 顯示目前試到哪一個
-
-            // 建立一個臨時圖片物件來測試能不能下載
-            const tempImg = new Image();
-            tempImg.onload = function() {
-                // 成功了！
-                imgElement.src = currentSrc;
-                imgElement.style.opacity = 0.85; // 顯示圖片
-                statusDiv.textContent = `成功載入: ${currentSrc.split('/').pop()}`;
-                // 3秒後隱藏狀態文字
-                setTimeout(() => { statusDiv.style.display = 'none'; }, 3000);
-            };
-            tempImg.onerror = function() {
-                // 失敗了，試下一個
-                currentTryIndex++;
-                tryLoadImage();
-            };
-            tempImg.src = currentSrc;
-        }
-
-        // 開始嘗試載入
-        tryLoadImage();
-
-        // --- 以下是原本的彈幕邏輯 ---
+        // --- 彈幕邏輯 ---
         const container = document.getElementById('danmaku-container');
         const colors = ['#FFFFFF', '#FFFAFA', '#FFE4E1', '#FFB6C1', '#F0F8FF'];
         let messages = []; 
@@ -160,7 +108,7 @@
                 startDanmaku();  
             })
             .catch(error => {
-                messages = ["LingOrm 聖誕快樂", "Waiting for love..."];
+                messages = ["LingOrm 聖誕快樂", "Merry Christmas"];
                 startDanmaku();
             });
 
@@ -176,18 +124,19 @@
             div.textContent = text;
             div.style.top = random(10, 85) + '%'; 
             div.style.color = colors[random(0, colors.length - 1)];
-            div.style.fontSize = isMobile ? random(22, 30) + 'px' : random(26, 38) + 'px';
-            const duration = isMobile ? random(10, 16) : random(14, 22);
+            let fontSize = isMobile ? random(22, 30) + 'px' : random(26, 40) + 'px';
+            div.style.fontSize = fontSize;
+            const duration = isMobile ? random(10, 16) : random(15, 25);
             div.style.animationName = 'scrollLeft';
             div.style.animationDuration = duration + 's';
             container.appendChild(div);
-            div.addEventListener('animationend', () => div.remove());
+            div.addEventListener('animationend', () => { div.remove(); });
         }
 
         function startDanmaku() {
-            const initialCount = isMobile ? 10 : 18;
+            const initialCount = isMobile ? 8 : 15;
             for(let i=0; i < initialCount; i++) { setTimeout(createDanmaku, i * 600); }
-            const intervalTime = isMobile ? 1000 : 800;
+            const intervalTime = isMobile ? 1200 : 900;
             setInterval(createDanmaku, intervalTime);
         }
         

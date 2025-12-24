@@ -10,19 +10,22 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden; /* 隱藏捲軸 */
-            background-color: #000;
+            overflow: hidden; 
+            /* 1. 關鍵修改：底色改成深紅色，如果圖片沒出來，至少會看到紅色 */
+            background-color: #550000; 
         }
 
-        /* 背景圖設定 - 強制使用網路圖片 */
         #bg-container {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            /* 只保留這個網路連結，確保一定能讀取 */
-            background-image: url('https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&auto=format&fit=crop&w=1920&q=80');
+            /* 2. 關鍵修改：設定兩層背景。如果圖片掛了，會顯示後面的紅綠漸層 */
+            background-image: 
+                url('https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=80&fm=jpg&crop=entropy&cs=tinysrgb&w=1920&fit=max'), 
+                linear-gradient(135deg, #8b0000 0%, #1a472a 100%); 
+            
             background-size: cover;
             background-position: center;
             opacity: 0.8; 
@@ -35,8 +38,18 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5); 
+            background: rgba(0, 0, 0, 0.4); 
             z-index: 0;
+        }
+
+        /* 測試用：版本號，確認網頁有更新 */
+        .version-tag {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 12px;
+            z-index: 100;
         }
 
         #danmaku-container {
@@ -72,19 +85,17 @@
 
     <div id="bg-container"></div>
     <div class="overlay"></div>
-    <div id="danmaku-container"></div>
+    <div class="version-tag">v3.0</div> <div id="danmaku-container"></div>
 
     <script>
         const container = document.getElementById('danmaku-container');
         const colors = ['#FFFFFF', '#FFE4E1', '#FFD700', '#F0F8FF', '#FFC0CB'];
         let messages = []; 
 
-        // 讀取外部的 messages.json 檔案
+        // 讀取外部檔案
         fetch('messages.json')
             .then(response => {
-                if (!response.ok) {
-                    throw new Error("HTTP error " + response.status);
-                }
+                if (!response.ok) throw new Error("HTTP error");
                 return response.json();
             })
             .then(data => {
@@ -92,9 +103,9 @@
                 startDanmaku();  
             })
             .catch(error => {
-                console.error('讀取留言檔失敗:', error);
-                // 萬一讀取失敗，顯示預設訊息
-                messages = ["LingOrm Forever (資料讀取中...)", "請檢查 messages.json 是否上傳"];
+                console.error('讀取失敗:', error);
+                // 如果讀取失敗，顯示預設文字
+                messages = ["LingOrm 聖誕快樂 (資料讀取中...)", "Happy New Year"];
                 startDanmaku();
             });
 
@@ -114,7 +125,8 @@
             div.style.color = colors[random(0, colors.length - 1)];
             div.style.fontSize = random(20, 32) + 'px'; 
             
-            const duration = random(8, 20);
+            // 讓速度稍微快一點點，避免空白太久
+            const duration = random(10, 20);
             div.style.animationName = 'scrollLeft';
             div.style.animationDuration = duration + 's';
 
@@ -126,8 +138,9 @@
         }
 
         function startDanmaku() {
-            for(let i=0; i<15; i++) {
-                setTimeout(createDanmaku, i * 500);
+            // 一開始先噴多一點
+            for(let i=0; i<20; i++) {
+                setTimeout(createDanmaku, i * 400);
             }
             setInterval(createDanmaku, 800);
         }

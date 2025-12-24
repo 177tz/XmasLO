@@ -62,9 +62,41 @@
             white-space: nowrap; 
             color: #fff;
             font-weight: bold;
-            /* 強力立體陰影 */
             text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000, 1px 1px 0px #000;
             will-change: transform;
+        }
+
+        /* --- 音樂按鈕樣式 --- */
+        #music-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.7);
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 100;
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+        }
+
+        /* 播放時的旋轉動畫 */
+        .playing {
+            animation: spin 4s linear infinite;
+            background: rgba(255, 60, 60, 0.8) !important; /* 播放時變紅色 */
+            border-color: #fff !important;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         @keyframes scrollLeft {
@@ -82,15 +114,70 @@
     <div class="overlay"></div>
     <div id="danmaku-container"></div>
 
+    <audio id="bgm-player"></audio>
+
+    <div id="music-btn" onclick="toggleMusic()">🔇</div>
+
     <script>
-        // --- 1. 圖片救援 ---
+        // --- 1. 音樂輪播設定 ---
+        // 請確保您的 GitHub 上有這些檔案 (或是改名成您的檔名)
+        const playlist = [
+            'song1.mp3',
+            'song2.mp3',
+            'song3.mp3'
+        ];
+        
+        let currentTrackIndex = 0;
+        const player = document.getElementById('bgm-player');
+        const musicBtn = document.getElementById('music-btn');
+        let isPlaying = false;
+
+        // 載入第一首
+        player.src = playlist[0];
+
+        // 監聽：這一首播完，自動播下一首
+        player.addEventListener('ended', function() {
+            currentTrackIndex++;
+            if (currentTrackIndex >= playlist.length) {
+                currentTrackIndex = 0; // 回到第一首
+            }
+            player.src = playlist[currentTrackIndex];
+            player.play();
+        });
+
+        // 開關音樂
+        function toggleMusic() {
+            if (isPlaying) {
+                player.pause();
+                musicBtn.classList.remove('playing');
+                musicBtn.textContent = "🔇"; // 靜音圖示
+                isPlaying = false;
+            } else {
+                // 嘗試播放
+                let playPromise = player.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(_ => {
+                        // 播放成功
+                        musicBtn.classList.add('playing');
+                        musicBtn.textContent = "🎵"; // 音樂圖示
+                        isPlaying = true;
+                    })
+                    .catch(error => {
+                        console.log("播放失敗，可能是檔案不存在或是路徑錯誤");
+                        alert("找不到音樂檔案！請確認 GitHub 上是否有上傳 song1.mp3");
+                    });
+                }
+            }
+        }
+
+        // --- 2. 圖片救援 ---
         const img = document.getElementById('bg-img');
         img.onerror = function() {
             this.src = 'https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=85&fm=jpg&w=1920';
         };
 
-        // --- 2. 內建留言資料 (防止外部檔案讀取失敗) ---
-        // 直接將資料整合在此，確保一定有字
+        // --- 3. 內建留言資料 ---
         const messages = [
             "希望你們一直都好好的。 (黃小靖)", "Lingorm forever (日日日)", "希望未來的路我們可以一起並肩而行 (T.)",
             "希望她們真的要結婚😍😍😍 (小黃)", "希望可以在台灣多開幾場見面會 (Ellen)", "希望他們可以並肩走很遠很遠🥹 (筍筍k~~~)",
@@ -137,17 +224,14 @@
         const colors = ['#FFFFFF', '#FFFAFA', '#FFE4E1', '#FFB6C1', '#F0F8FF', '#FFD700'];
         let isMobile = window.innerWidth < 768; 
 
-        // --- 3. 軌道系統 (修正版) ---
+        // --- 4. 軌道系統 ---
         let tracks = []; 
-        // 稍微縮小軌道高度，確保軌道數量足夠，這樣才不會沒地方塞字
         const trackHeight = isMobile ? 35 : 55; 
 
         function initTracks() {
             const screenHeight = window.innerHeight;
-            // 使用螢幕 85% 的高度來跑彈幕，上下留少許空間
             const availableHeight = screenHeight * 0.85; 
             const trackCount = Math.floor(availableHeight / trackHeight);
-            // 初始化軌道時間，0 代表現在就可以用
             tracks = new Array(trackCount).fill(0); 
         }
         
@@ -161,25 +245,20 @@
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
-        // --- 4. 產生彈幕 (保證出字邏輯) ---
+        // --- 5. 產生彈幕 ---
         function createDanmaku() {
             if (tracks.length === 0) initTracks();
 
             const now = Date.now();
-            
-            // 尋找空閒軌道
             const availableTracks = tracks
                 .map((time, index) => ({ time, index }))
                 .filter(item => now >= item.time)
                 .map(item => item.index);
 
-            // 如果真的太擠沒有軌道，為了不讓畫面冷場，我們隨機選一條比較早釋放的軌道「強制插入」
-            // 這樣就絕對不會發生「不出彈幕」的情況
             let trackIndex;
             if (availableTracks.length > 0) {
                 trackIndex = availableTracks[random(0, availableTracks.length - 1)];
             } else {
-                // 強制模式：隨機選一條，雖然可能會疊一點點，但總比沒字好
                 trackIndex = random(0, tracks.length - 1);
             }
 
@@ -189,24 +268,17 @@
             div.textContent = text;
             div.style.color = colors[random(0, colors.length - 1)];
             
-            // 字體設定
             let fontSize = isMobile ? random(20, 26) : random(28, 38);
             div.style.fontSize = fontSize + 'px';
 
-            // 位置設定 (加上 8% 的頂部安全距離)
             const topPos = (window.innerHeight * 0.08) + (trackIndex * trackHeight);
             div.style.top = topPos + 'px';
 
-            // 速度設定 (慢速優雅)
-            // 電腦版約 16~22 秒跑完
             let duration = isMobile ? random(12, 16) : random(16, 22);
             div.style.animation = `scrollLeft ${duration}s linear forwards`;
 
             container.appendChild(div);
 
-            // --- 5. 間距設定 (寬鬆模式) ---
-            // 鎖定時間設為動畫時間的 65%
-            // 這代表這句話跑過畫面一大半後，下一句才會進來，保證了寬鬆間距
             const lockTime = duration * 1000 * 0.65;
             tracks[trackIndex] = now + lockTime;
 
@@ -216,18 +288,12 @@
         }
 
         function startDanmaku() {
-            // 一開始先連續發 3 則，讓畫面有點東西
             setTimeout(() => createDanmaku(), 0);
             setTimeout(() => createDanmaku(), 500);
-            setTimeout(() => createDanmaku(), 1000);
-
-            // 之後每隔 1.5 秒發一則 (慢速頻率)
             setInterval(createDanmaku, 1500);
         }
 
-        // 啟動
         startDanmaku();
-        
     </script>
 </body>
 </html>

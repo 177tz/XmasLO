@@ -62,7 +62,7 @@
             white-space: nowrap; 
             color: #fff;
             font-weight: bold;
-            /* 強力陰影 */
+            /* 強力立體陰影 */
             text-shadow: 2px 2px 0px #000, -1px -1px 0px #000, 1px -1px 0px #000, -1px 1px 0px #000, 1px 1px 0px #000;
             will-change: transform;
         }
@@ -83,27 +83,71 @@
     <div id="danmaku-container"></div>
 
     <script>
-        // --- 圖片救援機制 ---
+        // --- 1. 圖片救援 ---
         const img = document.getElementById('bg-img');
         img.onerror = function() {
             this.src = 'https://images.unsplash.com/photo-1558018754-1f1b019ece9d?ixlib=rb-4.1.0&q=85&fm=jpg&w=1920';
         };
 
+        // --- 2. 內建留言資料 (防止外部檔案讀取失敗) ---
+        // 直接將資料整合在此，確保一定有字
+        const messages = [
+            "希望你們一直都好好的。 (黃小靖)", "Lingorm forever (日日日)", "希望未來的路我們可以一起並肩而行 (T.)",
+            "希望她們真的要結婚😍😍😍 (小黃)", "希望可以在台灣多開幾場見面會 (Ellen)", "希望他們可以並肩走很遠很遠🥹 (筍筍k~~~)",
+            "希望她們可以幸福久久😍😍😍 (阿呆)", "人間因為他們有了光 (快樂犬犬)", "怎麼能有顏值這麼高的夫妻檔😍 (沐希)",
+            "妳們很棒 (LEE)", "期待2/1的見面會 (J)", "感謝你們的出現，讓生活有一點點色彩 (CH20070811)", "希望她們長長久久 (綺)",
+            "祝福LingOrm感情事業順利長長久久 (阿絢)", "不論如何，身體健康一定為優先❤️ (may)", "Love (Lemongrab )",
+            "你們真的很棒💜 (013)", "謝謝妳們照亮了我的生活！ (FanT)", "希望lingorm 能夠一直走花路 (嘿)", "Don’t stop. Keep going. (丁)",
+            "永遠幸福的在一起 (LO kk)", "大家都平安健康，期待三搭的劇 (BT)", "🎄聖誕快樂❤️ (Espresso )", "祝福這可愛的兩個寶貝 (lin2025)",
+            "有他們讓我第一次踏入追星的地方～ (彭彭)", "祝福LingOrm能長久且快樂💜 (丘丘丘)", "開心、健康最重要。 (許柴)",
+            "謝謝你們的存在,感覺世界都變得美好了 (Chi)", "在忙也要好好照顧自己的身體 (carol)", "希望一切順利、健康平安快樂 (米粒)",
+            "希望LingOrm可以永遠牽手走下去 (AD)", "I hope LingOrm can become more and more popular (💓Karen💙)", "不要再被三台當工具人搖錢樹 (uniaa)",
+            "很幸運能有她們陪我度過人生 (RJ)", "祝福妳們永遠甜蜜幸福閃瞎我們 (Takamei)", "期待我們相見的那一天 (Ting627)",
+            "真心謝謝她們的出現 (富士山下)", "長長久久 (LIN YI)", "因為認識你們的我，也越來越愛自己 (K2024入坑底)",
+            "希望妳們可以長長久久！ (隆隆)", "希望兩位越來越好，健康幸福 (Piggy )", "2026你們一定會更好😍 (PKornPkwong)",
+            "請一直幸福快樂下去 (orange)", "一直牽著手走下去 (JK)", "LingOrm一定可以攜手走很久的花路的！ (Ching)",
+            "早日官宣 永浴愛河 哈哈哈 (LLIZO )", "Lingorm要一輩子長長久久在一起🥰 (一姐)", "LingOrm 要一直走花路下去 (君)",
+            "希望她們永遠快樂做自己🤍 (Sun)", "我比我想像中還專情😂 (She)", "希望可以一直順順利利 (🌟乂Kate乂)",
+            "希望妳們趕快結婚❤️每天甜甜蜜蜜 (Love Wins❤️)", "希望他們可以越來越好 (Wan)", "希望她們持續發光發亮 (Sherry )",
+            "新的一年繼續80們 (Jimmmm)", "希望多多來臺灣，永遠開心快樂 (0o)", "希望她們能注意健康 (Rong。)",
+            "希望妳們可以永遠記住每一刻生活帶來的美好 (Jia)", "希望兩位一直順順利利 (sonyu)", "快點結婚長長久久💜 (Liam)",
+            "謝謝您們，辛苦囉！！ (傻眼小妹)", "看著LO一路走來，經歷了好多風風雨雨 (Perooo)", "一定要繼續手牽著手 (kairi)",
+            "聖誕快樂！ (辣椒籽)", "快結婚吧❤️ (妍)", "祝身體健康、事業蒸蒸日上 (sa)", "可不可多開幾場台灣場 (BY)",
+            "希望他們能夠越來越好！ (yum☁️)", "希望她們未來能夠越來越好 (豚)", "希望LingOrm可以健健康康 (Lingka)",
+            "希望一直越來越紅！ (水水兒)", "00AW不要再出包 (Shark )", "一定要一直幸福快樂健康下去 (小宸)",
+            "謝謝妳們讓我的生活充滿了無限的美好 (荳鼠)", "謝謝妳們出現在大家的生活中~ (YCC)", "一直走花路吧！！ (AC)",
+            "你們在一起時的氛圍真的很溫暖 (嬋)", "真心希望有一天能看到你們結婚 (Uo)", "謝謝Lingorm讓我今年過的很開心 (yuki)",
+            "妳們是最棒的 (史迪)", "Lingorm ILU (orm.kornnaphat&ks)", "🥰🥰🥰🥰 (Wei0427)", "希望LingOrm能越來越紅！ (YCN)",
+            "希望lingOrm有自己的電影😌😌 (YUAN✌🏻)", "希望新劇順利，身體健康 (rong)", "希望LO一直幸福快樂 (曾小瑜)",
+            "謝謝LingOrm 讓我成為更好的人🤗 (潘威琪🪺🪹)", "2026年希望他們一樣可以紅紅火火 (WST)", "每天甜甜蜜蜜永遠在一起 (Small)",
+            "早日結婚 (K)", "身體健康、幸福美滿 (Angel)", "ranak mak mak (Moo)", "LingOrm長長久久~ (塔圖)",
+            "每天的精神良藥啊😌 (豆豆🫘)", "希望他們都可以開開心心做自己 (WWL)", "希望LingOrm 可以長久 (WJ)",
+            "一起走下去吧 (vtt)", "希望他們越來越好 (Dino)", "喜歡lingorm,只要是lingorm都喜歡 (Xx)", "愛lingorm (ChiaChi)",
+            "希望LO可以一直平安健康牽手走花路 (Afa_Wu)", "謝謝LingOrm 帶給我的快樂 (Annieee)", "ㄍㄟˋㄏㄨㄣ！！ (香草)",
+            "LingOrm永遠一起扶持走下去 (布格滴滴)", "希望lingorm能夠永遠開心 (名字是世界上最短的咒語)", "希望她們能一直開開心心 (liu)",
+            "祝福他們身體健康、工作順利平安 (番薯🍠)", "祝LO繼續閃閃發亮😍 (肉包)", "新年快樂 (茶葉蛋)",
+            "希望他們可以一直好好的 (Chen1)", "相信LingOrm會牽緊彼此的是手 (Gigi)", "願新的一年，妳們都能平安健康 (木木)",
+            "希望他們不要生病 (呂)", "LINGORM繼續行使雙方權利 (WeiWei)", "愛你們 (Sunny K)", "一定可以一直走下去 (yh)",
+            "身體健康 (Malisa )", "Thank you for being in my life (00Kwong❤️)", "感謝LingOrm 讓生活變得更正向 (咕嚕)",
+            "聖誕快樂&新年快樂～🫶🏻 (Wen)", "能認識妳們真的很幸運 (idle)", "希望LingOrm都身體健康平平安安 (免免)",
+            "希望她們的能一起四搭五搭 (Ray)", "一起繼續發光發熱 (CMY)", "一直幸福快樂唷 (Sisma)", "謝謝兩位帶給我這麼多歡樂 (Kelly)"
+        ];
+
         const container = document.getElementById('danmaku-container');
         const colors = ['#FFFFFF', '#FFFAFA', '#FFE4E1', '#FFB6C1', '#F0F8FF', '#FFD700'];
-        let messages = []; 
         let isMobile = window.innerWidth < 768; 
 
-        // --- 軌道系統 ---
+        // --- 3. 軌道系統 (修正版) ---
         let tracks = []; 
-        // 增加軌道高度，讓垂直間距變大
-        const trackHeight = isMobile ? 45 : 60; 
+        // 稍微縮小軌道高度，確保軌道數量足夠，這樣才不會沒地方塞字
+        const trackHeight = isMobile ? 35 : 55; 
 
         function initTracks() {
             const screenHeight = window.innerHeight;
-            // 上下各留 10% 空白，中間 80% 跑彈幕
-            const availableHeight = screenHeight * 0.8; 
+            // 使用螢幕 85% 的高度來跑彈幕，上下留少許空間
+            const availableHeight = screenHeight * 0.85; 
             const trackCount = Math.floor(availableHeight / trackHeight);
+            // 初始化軌道時間，0 代表現在就可以用
             tracks = new Array(trackCount).fill(0); 
         }
         
@@ -113,24 +157,12 @@
         });
         initTracks();
 
-        // --- 讀取資料 ---
-        fetch('messages.json')
-            .then(response => response.json())
-            .then(data => {
-                messages = data; 
-                startDanmaku();  
-            })
-            .catch(error => {
-                messages = ["LingOrm 聖誕快樂", "Merry Christmas", "Happy New Year"];
-                startDanmaku();
-            });
-
         function random(min, max) {
             return Math.floor(Math.random() * (max - min + 1)) + min;
         }
 
+        // --- 4. 產生彈幕 (保證出字邏輯) ---
         function createDanmaku() {
-            if (messages.length === 0) return; 
             if (tracks.length === 0) initTracks();
 
             const now = Date.now();
@@ -141,10 +173,61 @@
                 .filter(item => now >= item.time)
                 .map(item => item.index);
 
-            // 如果太擠沒有軌道，就跳過
-            if (availableTracks.length === 0) return;
+            // 如果真的太擠沒有軌道，為了不讓畫面冷場，我們隨機選一條比較早釋放的軌道「強制插入」
+            // 這樣就絕對不會發生「不出彈幕」的情況
+            let trackIndex;
+            if (availableTracks.length > 0) {
+                trackIndex = availableTracks[random(0, availableTracks.length - 1)];
+            } else {
+                // 強制模式：隨機選一條，雖然可能會疊一點點，但總比沒字好
+                trackIndex = random(0, tracks.length - 1);
+            }
 
-            // 隨機選一條
-            const trackIndex = availableTracks[random(0, availableTracks.length - 1)];
+            const text = messages[random(0, messages.length - 1)];
+            const div = document.createElement('div');
+            div.className = 'danmaku-item';
+            div.textContent = text;
+            div.style.color = colors[random(0, colors.length - 1)];
+            
+            // 字體設定
+            let fontSize = isMobile ? random(20, 26) : random(28, 38);
+            div.style.fontSize = fontSize + 'px';
 
-            const text = messages[random(
+            // 位置設定 (加上 8% 的頂部安全距離)
+            const topPos = (window.innerHeight * 0.08) + (trackIndex * trackHeight);
+            div.style.top = topPos + 'px';
+
+            // 速度設定 (慢速優雅)
+            // 電腦版約 16~22 秒跑完
+            let duration = isMobile ? random(12, 16) : random(16, 22);
+            div.style.animation = `scrollLeft ${duration}s linear forwards`;
+
+            container.appendChild(div);
+
+            // --- 5. 間距設定 (寬鬆模式) ---
+            // 鎖定時間設為動畫時間的 65%
+            // 這代表這句話跑過畫面一大半後，下一句才會進來，保證了寬鬆間距
+            const lockTime = duration * 1000 * 0.65;
+            tracks[trackIndex] = now + lockTime;
+
+            div.addEventListener('animationend', () => {
+                div.remove();
+            });
+        }
+
+        function startDanmaku() {
+            // 一開始先連續發 3 則，讓畫面有點東西
+            setTimeout(() => createDanmaku(), 0);
+            setTimeout(() => createDanmaku(), 500);
+            setTimeout(() => createDanmaku(), 1000);
+
+            // 之後每隔 1.5 秒發一則 (慢速頻率)
+            setInterval(createDanmaku, 1500);
+        }
+
+        // 啟動
+        startDanmaku();
+        
+    </script>
+</body>
+</html>
